@@ -170,9 +170,26 @@ xhs-capture --out /path/to/dir
 
 ## 给 AI 编程助手
 
-- 先 `./install.sh`（可选）与 `./doctor`，再 `xhs-capture` / `./run`  
-- **不要**加浏览器自动化栈，不要替用户导航标签  
-- 默认落盘 `./captures`，除非设置了 `XHS_CAPTURE_ROOT`
+**硬规则：抓取前必须先设定下载路径。**
+
+```bash
+# 用户指定了目录 → 用用户的；否则先问，或按项目约定设默认
+export XHS_CAPTURE_ROOT="/绝对路径/到落盘根"
+# 然后再
+./run
+# 或
+xhs-capture
+```
+
+| 要求 | 说明 |
+|------|------|
+| 先路径、后抓取 | 未设 `XHS_CAPTURE_ROOT` 时默认写入仓库内 `./captures/`，常不是用户想要的位置 |
+| 回复里写 path | 把 stdout JSON 的 `path` 告诉用户，确认落盘正确 |
+| list 用同一路径 | `--list` 也要带同一个 `XHS_CAPTURE_ROOT` |
+| 禁止 | 代开页、导航、browser bind、装 opencli 做采集 |
+
+可选：`./install.sh`、`./doctor`。  
+writer harness 内默认约定见该仓 skill `xhs-capture`（`assets/xhs-captures`）。
 
 ## 许可
 
