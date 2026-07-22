@@ -2,10 +2,22 @@
 # xhs-capture CLI entry (works from terminal / Shortcuts with a short PATH)
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+# Follow symlinks so ~/.local/bin/xhs-capture still finds capture.mjs
+resolve_script_root() {
+  local src="${BASH_SOURCE[0]:-$0}"
+  while [[ -L "$src" ]]; do
+    local dir
+    dir="$(cd "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  cd "$(dirname "$src")" && pwd
+}
+
+ROOT="$(resolve_script_root)"
 HOME_DIR="${HOME:-$(/bin/ls -d ~ 2>/dev/null || echo /Users/wen)}"
 
-export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:${HOME_DIR}/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 # Harness convenience: if invoked via writer-workspace symlink/path and no override,
 # keep captures in writer assets (historical layout).

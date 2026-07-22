@@ -1,22 +1,33 @@
 #!/usr/bin/env bash
 # macOS Shortcuts / Raycast: capture + system notification
 #
-# In Shortcuts "Run Shell Script", paste the absolute path printed by ./doctor:
-#   /path/to/xhs-capture/shortcut.sh
+# After ./install.sh, Shortcuts can use a portable line:
+#   "$HOME/.local/bin/xhs-capture-shortcut"
 # Deep:
-#   /path/to/xhs-capture/shortcut.sh --deep
+#   "$HOME/.local/bin/xhs-capture-shortcut" --deep
 #
 # Logs: /tmp/xhs-capture-shortcut.log
 
 set -u
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+resolve_script_root() {
+  local src="${BASH_SOURCE[0]:-$0}"
+  while [[ -L "$src" ]]; do
+    local dir
+    dir="$(cd "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  cd "$(dirname "$src")" && pwd
+}
+
+ROOT="$(resolve_script_root)"
 HOME_DIR="${HOME:-/Users/wen}"
 CAPTURE="$ROOT/run"
 LOG="/tmp/xhs-capture-shortcut.log"
 ERR="/tmp/xhs-capture-shortcut.log.err"
 
-export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:${HOME_DIR}/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 # Same harness convenience as run
 if [[ -z "${XHS_CAPTURE_ROOT:-}" ]]; then
@@ -42,6 +53,7 @@ notify() {
 {
   echo "==== $(date '+%Y-%m-%d %H:%M:%S') ===="
   echo "args: $*"
+  echo "root=$ROOT"
   echo "node=$(command -v node 2>/dev/null || echo MISSING)"
   echo "XHS_CAPTURE_ROOT=${XHS_CAPTURE_ROOT:-}"
 } >"$LOG"

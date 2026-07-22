@@ -7,7 +7,7 @@
 ## 做什么
 
 1. 你在 Chrome 里正常打开一篇笔记详情  
-2. 运行 `./run`（或快捷指令调用 `shortcut.sh`）  
+2. 运行 `xhs-capture` / `./run`（或快捷指令调用固定入口）  
 3. 工具对**当前已有标签**做只读抽取（Apple Events + JavaScript）  
 4. 写入 `./captures/`（可用环境变量改路径）
 
@@ -23,26 +23,101 @@
 | Chrome 开关 | **查看 → 开发者 → 允许 Apple 事件中的 JavaScript** |
 | 系统权限 | 隐私与安全性 → 自动化：允许「终端 / 快捷指令」控制 Google Chrome |
 
-## 安装（代码）
+## 安装
 
 ```bash
 git clone https://github.com/Sevncz/xhs-capture.git
 cd xhs-capture
-./doctor
+./install.sh    # 把命令链到 ~/.local/bin（固定路径，给快捷指令用）
+./doctor        # 检查环境
 ```
 
-`doctor` **只检查环境、打印绝对路径**，不安装任何软件。
+### `install.sh` 做什么
+
+| 入口 | 作用 |
+|------|------|
+| `~/.local/bin/xhs-capture` | 终端 CLI（= `run`） |
+| `~/.local/bin/xhs-capture-shortcut` | 快捷指令 / 通知（= `shortcut.sh`） |
+| `~/.local/bin/xhs-capture-doctor` | 环境检查 |
+
+默认是 **symlink 到本仓库**（`git pull` 后不用重装；若你挪了 clone 目录，再跑一次 `./install.sh`）。
+
+```bash
+./install.sh --copy       # 复制到 ~/.local/share/xhs-capture，clone 可删
+./install.sh --uninstall  # 只删 bin 入口
+```
+
+**不安** Node / Chrome；只装本工具的入口。
+
+若提示 `~/.local/bin` 不在 PATH，把下面写入 `~/.zshrc`（仅终端需要；快捷指令用 `$HOME/...` 完整路径即可）：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+---
+
+## 快捷指令（推荐）
+
+### 推荐流程（路径固定，导入后不用改）
+
+1. 本机执行 `./install.sh`（见上）  
+2. 导入快捷指令（二选一）：  
+   - **iCloud**：[保存 xhs 笔记](https://www.icloud.com/shortcuts/de79d50eed5a47e0adc7c69ba1280ca3)  
+   - **仓库内文件**：双击 / 用「快捷指令」打开本仓的 `保存xhs笔记.shortcut`  
+3. 确认「运行 Shell 脚本」内容为（**推荐写法，所有用户通用**）：
+
+   ```bash
+   "$HOME/.local/bin/xhs-capture-shortcut"
+   ```
+
+   深度保存：
+
+   ```bash
+   "$HOME/.local/bin/xhs-capture-shortcut" --deep
+   ```
+
+4. 首次运行时允许「快捷指令」控制 Google Chrome。  
+5. Chrome 勾选：**查看 → 开发者 → 允许 Apple 事件中的 JavaScript**。
+
+只要对方先 `install.sh`，快捷指令里写 `$HOME/.local/bin/...`，**不必再改成各自的 clone 路径**。
+
+> 若你分享的旧版快捷指令仍写着 `/Users/某用户/.../shortcut.sh`，请编辑成上面的 `$HOME/.local/bin/xhs-capture-shortcut`，再重新「分享 → 拷贝 iCloud 链接」。
+
+### 为什么需要 install？
+
+| 问题 | 做法 |
+|------|------|
+| clone 路径每人不同 | 入口统一装到 `~/.local/bin` |
+| 系统不能「一条命令创建快捷指令」 | 用 iCloud 模板 + 固定 Shell 行 |
+| GUI 里 PATH 很短 | `shortcut.sh` 会自己补 PATH；且用 `$HOME/...` 绝对路径 |
+
+### 手建（不用 iCloud 时）
+
+快捷指令 App → 新建 → **运行 Shell 脚本** → 贴：
+
+```bash
+"$HOME/.local/bin/xhs-capture-shortcut"
+```
+
+### 日志
+
+```text
+/tmp/xhs-capture-shortcut.log
+/tmp/xhs-capture-shortcut.log.err
+```
+
+---
 
 ## 日常用法
 
 先在 Chrome 打开笔记详情，再执行：
 
 ```bash
-./run
-./run --deep              # 额外 raw.html + curl 下图
-./run --comments          # 抓评论（默认关闭，需显式打开）
-./run --list
-./run --list --limit 50
+xhs-capture                 # 或 ./run
+xhs-capture --deep
+xhs-capture --comments      # 抓评论（默认关闭）
+xhs-capture --list
 ```
 
 ### 落盘结构
@@ -66,99 +141,10 @@ captures/YYYY-MM-DD-标题/
 
 ```bash
 export XHS_CAPTURE_ROOT="$HOME/my-notes"
-./run
+xhs-capture
 # 或
-./run --out /path/to/dir
+xhs-capture --out /path/to/dir
 ```
-
----
-
-## 快捷指令（推荐日常触发）
-
-### 有没有「快速安装」？
-
-| 方式 | 速度 | 说明 |
-|------|------|------|
-| **手建一条「运行 Shell 脚本」** | 约 1 分钟 | 最稳；路径随本机 clone 位置变化，必须贴**你机器上的绝对路径** |
-| **iCloud 分享链接** | 点一下导入 | Apple 官方「快速安装」形态；但链接里的 Shell 路径是分享者本机的，**别人导入后仍要改成自己的 `shortcut.sh` 路径** |
-| **仓库一键装快捷指令** | ❌ 没有 | 系统 `shortcuts` 命令只能 run / list / sign，**不能**从 CLI 新建快捷指令；也无法可靠生成通用 `.shortcut` 包给所有人用 |
-
-结论：代码用 git 装；快捷指令**建议每人手建一次**（或导入模板后再改路径）。`./doctor` 会打印可直接粘贴的绝对路径。
-
-### 手建步骤（约 1 分钟）
-
-1. 在本仓库目录执行：
-
-   ```bash
-   ./doctor
-   ```
-
-   末尾会类似输出：
-
-   ```text
-   → Shortcuts: paste this absolute path into Run Shell Script:
-     /Users/你的用户名/.../xhs-capture/shortcut.sh
-   ```
-
-2. 打开 macOS **快捷指令** App → 点 **+** 新建。  
-3. 搜索并添加动作：**运行 Shell 脚本**（Run Shell Script）。  
-4. 设置：  
-   - Shell：`/bin/bash` 或 `/bin/zsh` 均可  
-   - 输入：一般选「作为参数」或关掉输入（本脚本不读 stdin）  
-   - **脚本内容只贴一行**（换成 doctor 打印的路径）：
-
-   ```bash
-   /Users/你的用户名/.../xhs-capture/shortcut.sh
-   ```
-
-   深度保存则：
-
-   ```bash
-   /Users/你的用户名/.../xhs-capture/shortcut.sh --deep
-   ```
-
-5. 命名（例如 `保存小红书笔记`）→ 完成。  
-6. 可选：  
-   - 点快捷指令详情 → **添加到菜单栏 / 固定到程序坞**  
-   - **使用时显示**可关，减少弹窗  
-   - 设置 **键盘快捷键**（系统设置 → 键盘 → 键盘快捷键 → 服务 / 快捷指令，视系统版本而定）
-
-7. **第一次运行**时，系统会要自动化权限：允许「快捷指令」控制 **Google Chrome**、可能还要允许访问磁盘。请点允许。  
-8. Chrome 需已勾选：**查看 → 开发者 → 允许 Apple 事件中的 JavaScript**。
-
-### 使用方式
-
-1. Chrome 打开一篇笔记详情（前台可见即可）  
-2. 跑你建好的快捷指令（菜单栏 / 快捷键 / 快捷指令 App）  
-3. 右上角通知：成功会显示标题与路径；失败看日志
-
-日志：
-
-```text
-/tmp/xhs-capture-shortcut.log
-/tmp/xhs-capture-shortcut.log.err
-```
-
-### 仓库搬家 / 重装后
-
-路径变了会失败。再跑一次 `./doctor`，把快捷指令里那一行 Shell 路径改成新的绝对路径即可。
-
-### 用 iCloud 链接分享（可选，给熟人）
-
-若你**自己**已经建好一条快捷指令，可在快捷指令 App 里：**分享 → 拷贝 iCloud 链接**。  
-对方打开链接会导入模板，但 **Shell 脚本里的路径仍是你的路径**，对方必须改成自己 clone 后的 `shortcut.sh` 绝对路径。  
-因此公开仓库**不绑定**某个 iCloud 链接（避免路径写死误导）。
-
-### 替代：Raycast / 终端别名
-
-不折腾快捷指令时：
-
-```bash
-# 在 shell 配置里
-alias xhs-save='/Users/你的用户名/.../xhs-capture/run'
-```
-
-或在 Raycast 里加 Script Command，内容同样指向 `run` / `shortcut.sh`。
 
 ---
 
@@ -177,14 +163,14 @@ alias xhs-save='/Users/你的用户名/.../xhs-capture/run'
 |------|------|
 | 抽不到正文 / Apple JS 报错 | Chrome → 允许 Apple 事件中的 JavaScript |
 | 读不到标签 | 系统设置 → 隐私与安全性 → 自动化 → 允许控制 Google Chrome |
-| `node: not found` | 安装 Node ≥ 18；用 `./run` 或 `shortcut.sh`（勿在 GUI 里裸调 node） |
+| `node: not found` | 安装 Node ≥ 18；用 `xhs-capture` / `xhs-capture-shortcut` |
 | exit 1 | 先打开笔记详情（URL 含 `/explore/` 等） |
-| 截图不对 | 截的是窗口；笔记需在该窗口可见 |
-| 快捷指令没反应 | 看 `/tmp/xhs-capture-shortcut.log`；路径是否仍指向本机 `shortcut.sh` |
+| 快捷指令失败 | 是否已 `./install.sh`；Shell 是否为 `"$HOME/.local/bin/xhs-capture-shortcut"`；看 `/tmp/xhs-capture-shortcut.log` |
+| 挪了仓库目录 | 再跑一次 `./install.sh`（symlink 模式） |
 
 ## 给 AI 编程助手
 
-- 先 `./doctor`，再 `./run` / `./run --list`  
+- 先 `./install.sh`（可选）与 `./doctor`，再 `xhs-capture` / `./run`  
 - **不要**加浏览器自动化栈，不要替用户导航标签  
 - 默认落盘 `./captures`，除非设置了 `XHS_CAPTURE_ROOT`
 

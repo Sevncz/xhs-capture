@@ -2,9 +2,20 @@
 # Environment check only — does not install packages.
 set -u
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+resolve_script_root() {
+  local src="${BASH_SOURCE[0]:-$0}"
+  while [[ -L "$src" ]]; do
+    local dir
+    dir="$(cd "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  cd "$(dirname "$src")" && pwd
+}
+
+ROOT="$(resolve_script_root)"
 HOME_DIR="${HOME:-$(/bin/ls -d ~ 2>/dev/null || echo "$HOME")}"
-export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:${HOME_DIR}/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 fail=0
 warn=0
@@ -75,16 +86,28 @@ else
 fi
 
 # scripts present
-for f in run capture.mjs shortcut.sh; do
+for f in run capture.mjs shortcut.sh install.sh; do
   if [[ -e "$ROOT/$f" ]]; then
     ok "file $f"
   else
-    bad "missing $f"
+    if [[ "$f" == "install.sh" ]]; then
+      warn_line "missing $f"
+    else
+      bad "missing $f"
+    fi
   fi
 done
 
+# fixed install entries
+INST="$HOME_DIR/.local/bin/xhs-capture-shortcut"
+if [[ -L "$INST" || -x "$INST" ]]; then
+  ok "installed entry: $INST"
+else
+  warn_line "not installed to ~/.local/bin — run ./install.sh for fixed Shortcuts path"
+fi
+
 # make sure executables
-chmod +x "$ROOT/run" "$ROOT/shortcut.sh" "$ROOT/doctor" 2>/dev/null || true
+chmod +x "$ROOT/run" "$ROOT/shortcut.sh" "$ROOT/doctor" "$ROOT/install.sh" 2>/dev/null || true
 
 OUT_DEFAULT="$ROOT/captures"
 if [[ -n "${XHS_CAPTURE_ROOT:-}" ]]; then
@@ -98,13 +121,17 @@ note "Manual setup (scripts cannot toggle these):"
 note "1. Chrome → View → Developer → Allow JavaScript from Apple Events"
 note "2. System Settings → Privacy & Security → Automation:"
 note "   allow Terminal / Shortcuts to control Google Chrome"
-note "3. Open a note detail page in Chrome, then: ./run"
+note "3. Open a note detail page in Chrome, then: ./run  or  xhs-capture"
 echo
-note "Shortcuts: paste this absolute path into Run Shell Script:"
+note "推荐：先 ./install.sh，快捷指令固定写："
+echo "  \"\$HOME/.local/bin/xhs-capture-shortcut\""
+note "Deep:"
+echo "  \"\$HOME/.local/bin/xhs-capture-shortcut\" --deep"
+echo
+note "仓库内直接调用（未 install 时）:"
 echo "  $ROOT/shortcut.sh"
-note "Deep capture:"
-echo "  $ROOT/shortcut.sh --deep"
 echo
+note "iCloud 模板: https://www.icloud.com/shortcuts/de79d50eed5a47e0adc7c69ba1280ca3"
 note "Optional: export XHS_CAPTURE_ROOT=/your/path  to change save location"
 echo
 
