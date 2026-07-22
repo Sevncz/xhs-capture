@@ -9,7 +9,7 @@
 1. 你在 Chrome 里正常打开一篇笔记详情  
 2. 运行 `xhs-capture` / `./run`（或快捷指令调用固定入口）  
 3. 工具对**当前已有标签**做只读抽取（Apple Events + JavaScript）  
-4. 写入 `./captures/`（可用环境变量改路径）
+4. 默认写入 **`~/Documents/xhs-capture/`**（可用环境变量改路径）
 
 **不会**新建浏览器窗口、不会替你跳转页面、不依赖第三方浏览器 CLI。
 
@@ -25,9 +25,35 @@
 
 ## 安装
 
+### 给 AI 编程助手（安装 / 抓取前必做）
+
+**硬规则：抓取前先确认落盘路径。** 用户指定了就用用户的；未指定时：
+
+- **工具默认**：`~/Documents/xhs-capture`
+- **writer harness**：约定 `assets/xhs-captures`（见该仓 skill）
+
+仍建议 agent **显式** `export XHS_CAPTURE_ROOT=...`，避免和用户预期不一致。
+
+```bash
+# 用户指定了目录 → 用用户的
+export XHS_CAPTURE_ROOT="/绝对路径/到落盘根"
+# 未指定且非 writer 任务 → 可依赖默认：
+# export XHS_CAPTURE_ROOT="$HOME/Documents/xhs-capture"
+```
+
+| 要求 | 说明 |
+|------|------|
+| 先确认路径 | 有约定就 export；无约定则说明将用默认 `~/Documents/xhs-capture` |
+| 回复里写 path | 抓取后把 stdout JSON 的 `path` 告诉用户（防找不到） |
+| list 用同一路径 | `--list` 也要带同一个 `XHS_CAPTURE_ROOT`（或同一默认） |
+| 禁止 | 代开页、导航、browser bind、装 opencli 做采集 |
+
+### 安装代码与入口
+
 ```bash
 git clone https://github.com/Sevncz/xhs-capture.git
 cd xhs-capture
+# 可选：export XHS_CAPTURE_ROOT=...  （不设则默认 ~/Documents/xhs-capture）
 ./install.sh    # 把命令链到 ~/.local/bin（固定路径，给快捷指令用）
 ./doctor        # 检查环境
 ```
@@ -122,8 +148,10 @@ xhs-capture --list
 
 ### 落盘结构
 
+默认根目录：`~/Documents/xhs-capture`。
+
 ```text
-captures/YYYY-MM-DD-标题/
+~/Documents/xhs-capture/YYYY-MM-DD-标题/
   meta.json
   content.md
   shot.png
@@ -167,29 +195,6 @@ xhs-capture --out /path/to/dir
 | exit 1 | 先打开笔记详情（URL 含 `/explore/` 等） |
 | 快捷指令失败 | 是否已 `./install.sh`；Shell 是否为 `"$HOME/.local/bin/xhs-capture-shortcut"`；看 `/tmp/xhs-capture-shortcut.log` |
 | 挪了仓库目录 | 再跑一次 `./install.sh`（symlink 模式） |
-
-## 给 AI 编程助手
-
-**硬规则：抓取前必须先设定下载路径。**
-
-```bash
-# 用户指定了目录 → 用用户的；否则先问，或按项目约定设默认
-export XHS_CAPTURE_ROOT="/绝对路径/到落盘根"
-# 然后再
-./run
-# 或
-xhs-capture
-```
-
-| 要求 | 说明 |
-|------|------|
-| 先路径、后抓取 | 未设 `XHS_CAPTURE_ROOT` 时默认写入仓库内 `./captures/`，常不是用户想要的位置 |
-| 回复里写 path | 把 stdout JSON 的 `path` 告诉用户，确认落盘正确 |
-| list 用同一路径 | `--list` 也要带同一个 `XHS_CAPTURE_ROOT` |
-| 禁止 | 代开页、导航、browser bind、装 opencli 做采集 |
-
-可选：`./install.sh`、`./doctor`。  
-writer harness 内默认约定见该仓 skill `xhs-capture`（`assets/xhs-captures`）。
 
 ## 许可
 

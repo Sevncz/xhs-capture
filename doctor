@@ -109,11 +109,10 @@ fi
 # make sure executables
 chmod +x "$ROOT/run" "$ROOT/shortcut.sh" "$ROOT/doctor" "$ROOT/install.sh" 2>/dev/null || true
 
-OUT_DEFAULT="$ROOT/captures"
 if [[ -n "${XHS_CAPTURE_ROOT:-}" ]]; then
   ok "XHS_CAPTURE_ROOT=${XHS_CAPTURE_ROOT}"
 else
-  ok "default output: $OUT_DEFAULT"
+  ok "default output: ${HOME_DIR}/Documents/xhs-capture"
 fi
 
 echo

@@ -3,7 +3,8 @@
  * xhs-capture — save a Xiaohongshu note page already open in Chrome to local files.
  *
  * - Read-only Apple Events JS on the existing note tab (no navigation, no new window)
- * - Default output: ./captures/YYYY-MM-DD-title/  (override with XHS_CAPTURE_ROOT or --out)
+ * - Default output: ~/Documents/xhs-capture
+ *   (override with XHS_CAPTURE_ROOT or --out)
  * - Same note_id overwrites; keeps first_captured_at
  *
  * Exit: 0 full | 3 degraded | 2 env | 1 business failure
@@ -23,9 +24,12 @@ import {
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_OUT_ROOT = join(__dirname, "captures");
+
+/** Default save root when XHS_CAPTURE_ROOT / --out unset. */
+const DEFAULT_OUT_ROOT = join(homedir(), "Documents", "xhs-capture");
 
 const EXIT = {
   OK: 0,
@@ -78,8 +82,8 @@ function usage() {
   ./run --list
   ./shortcut.sh         快捷指令入口
 
-落盘（默认 ./captures，可用 XHS_CAPTURE_ROOT 或 --out 覆盖）:
-  captures/YYYY-MM-DD-标题/
+落盘（默认 ~/Documents/xhs-capture；可用 XHS_CAPTURE_ROOT 或 --out 覆盖）:
+  ~/Documents/xhs-capture/YYYY-MM-DD-标题/
     meta.json  content.md  shot.png
     comments.json  comments.md   # 仅 --comments 时
 
