@@ -27,26 +27,26 @@
 
 ### 给 AI 编程助手（安装 / 抓取前必做）
 
-**硬规则：抓取前先确认落盘路径。** 用户指定了就用用户的；未指定时：
+**硬规则：抓取前先确认落盘路径。**
 
-- **工具默认**：`~/Documents/xhs-capture`
-- **writer harness**：约定 `assets/xhs-captures`（见该仓 skill）
-
-仍建议 agent **显式** `export XHS_CAPTURE_ROOT=...`，避免和用户预期不一致。
+| 情况 | 怎么做 |
+|------|--------|
+| 用户指定了目录 | `export XHS_CAPTURE_ROOT="/用户给的绝对路径"` |
+| 用户未指定 | 使用工具默认 `~/Documents/xhs-capture`，并在回复里写明 |
+| 用户项目另有约定 | 以用户说明或项目文档为准，不要假设路径 |
 
 ```bash
-# 用户指定了目录 → 用用户的
-export XHS_CAPTURE_ROOT="/绝对路径/到落盘根"
-# 未指定且非 writer 任务 → 可依赖默认：
-# export XHS_CAPTURE_ROOT="$HOME/Documents/xhs-capture"
+export XHS_CAPTURE_ROOT="/绝对路径/到落盘根"   # 有约定时
+# 无约定时可省略，默认 ~/Documents/xhs-capture
+xhs-capture   # 或 ./run
 ```
 
 | 要求 | 说明 |
 |------|------|
-| 先确认路径 | 有约定就 export；无约定则说明将用默认 `~/Documents/xhs-capture` |
+| 先确认路径 | 有约定就 export；无约定则告知将用默认 `~/Documents/xhs-capture` |
 | 回复里写 path | 抓取后把 stdout JSON 的 `path` 告诉用户（防找不到） |
 | list 用同一路径 | `--list` 也要带同一个 `XHS_CAPTURE_ROOT`（或同一默认） |
-| 禁止 | 代开页、导航、browser bind、装 opencli 做采集 |
+| 禁止 | 代开页、导航、browser bind、装 opencli 做采集；**不要假设**用户本机目录布局 |
 
 ### 安装代码与入口
 
