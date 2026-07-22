@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Environment check only — does not install packages.
+set -u
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+HOME_DIR="${HOME:-$(/bin/ls -d ~ 2>/dev/null || echo "$HOME")}"
+export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
+fail=0
+warn=0
+
+ok()   { printf '✓ %s\n' "$1"; }
+bad()  { printf '✗ %s\n' "$1"; fail=1; }
+note() { printf '→ %s\n' "$1"; }
+warn_line() { printf '⚠ %s\n' "$1"; warn=1; }
+
+echo "xhs-capture doctor"
+echo "root: $ROOT"
+echo
+
+# macOS
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  ok "macOS ($(uname -m))"
+else
+  bad "macOS required (found $(uname -s))"
+fi
+
+# node
+NODE_BIN=""
+if command -v node >/dev/null 2>&1; then
+  NODE_BIN="$(command -v node)"
+else
+  for c in "${HOME_DIR}/.n/bin/node" /usr/local/bin/node /opt/homebrew/bin/node; do
+    if [[ -x "$c" ]]; then NODE_BIN="$c"; break; fi
+  done
+fi
+
+if [[ -n "$NODE_BIN" ]]; then
+  VER="$("$NODE_BIN" -p "process.versions.node" 2>/dev/null || echo "?")"
+  MAJOR="${VER%%.*}"
+  if [[ "$MAJOR" =~ ^[0-9]+$ && "$MAJOR" -ge 18 ]]; then
+    ok "node v${VER} ($NODE_BIN)"
+  else
+    bad "node ≥ 18 required (found v${VER} at $NODE_BIN)"
+  fi
+else
+  bad "node not found — install Node.js ≥ 18"
+fi
+
+# system tools
+if command -v osascript >/dev/null 2>&1; then
+  ok "osascript"
+else
+  bad "osascript missing"
+fi
+
+if command -v screencapture >/dev/null 2>&1; then
+  ok "screencapture"
+else
+  bad "screencapture missing"
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  ok "curl (for --deep image download)"
+else
+  warn_line "curl not found — standard capture works; --deep image download may fail"
+fi
+
+# Chrome.app
+CHROME_APP="/Applications/Google Chrome.app"
+if [[ -d "$CHROME_APP" ]]; then
+  ok "Google Chrome.app"
+else
+  bad "Google Chrome.app not found at $CHROME_APP"
+fi
+
+# scripts present
+for f in run capture.mjs shortcut.sh; do
+  if [[ -e "$ROOT/$f" ]]; then
+    ok "file $f"
+  else
+    bad "missing $f"
+  fi
+done
+
+# make sure executables
+chmod +x "$ROOT/run" "$ROOT/shortcut.sh" "$ROOT/doctor" 2>/dev/null || true
+
+OUT_DEFAULT="$ROOT/captures"
+if [[ -n "${XHS_CAPTURE_ROOT:-}" ]]; then
+  ok "XHS_CAPTURE_ROOT=${XHS_CAPTURE_ROOT}"
+else
+  ok "default output: $OUT_DEFAULT"
+fi
+
+echo
+note "Manual setup (scripts cannot toggle these):"
+note "1. Chrome → View → Developer → Allow JavaScript from Apple Events"
+note "2. System Settings → Privacy & Security → Automation:"
+note "   allow Terminal / Shortcuts to control Google Chrome"
+note "3. Open a note detail page in Chrome, then: ./run"
+echo
+note "Shortcuts: paste this absolute path into Run Shell Script:"
+echo "  $ROOT/shortcut.sh"
+note "Deep capture:"
+echo "  $ROOT/shortcut.sh --deep"
+echo
+note "Optional: export XHS_CAPTURE_ROOT=/your/path  to change save location"
+echo
+
+if [[ "$fail" -ne 0 ]]; then
+  echo "doctor: FAILED (fix hard requirements above)"
+  exit 2
+fi
+
+if [[ "$warn" -ne 0 ]]; then
+  echo "doctor: OK with warnings"
+  exit 0
+fi
+
+echo "doctor: OK"
+exit 0

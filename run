@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# xhs-capture CLI entry (works from terminal / Shortcuts with a short PATH)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+HOME_DIR="${HOME:-$(/bin/ls -d ~ 2>/dev/null || echo /Users/wen)}"
+
+export PATH="${HOME_DIR}/.n/bin:${HOME_DIR}/.npm-global/bin:${HOME_DIR}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
+# Harness convenience: if invoked via writer-workspace symlink/path and no override,
+# keep captures in writer assets (historical layout).
+if [[ -z "${XHS_CAPTURE_ROOT:-}" ]]; then
+  case "${0}" in
+    *writer-workspace/scripts/xhs-capture*)
+      _base="${0%writer-workspace/scripts/xhs-capture*}"
+      _candidate="${_base}writer-workspace/assets/xhs-captures"
+      if [[ -d "$_candidate" ]] || [[ -d "$(dirname "$_candidate")" ]]; then
+        export XHS_CAPTURE_ROOT="$_candidate"
+      fi
+      ;;
+  esac
+  if [[ -z "${XHS_CAPTURE_ROOT:-}" && -d "${PWD}/assets/xhs-captures" ]]; then
+    export XHS_CAPTURE_ROOT="${PWD}/assets/xhs-captures"
+  fi
+fi
+
+resolve_node() {
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return
+  fi
+  local c
+  for c in \
+    "${HOME_DIR}/.n/bin/node" \
+    /usr/local/bin/node \
+    /opt/homebrew/bin/node
+  do
+    [[ -x "$c" ]] && { echo "$c"; return; }
+  done
+  return 1
+}
+
+NODE_BIN="$(resolve_node)" || {
+  echo "xhs-capture: node not found (GUI PATH often lacks shell config)." >&2
+  echo "Install Node.js ≥ 18, then re-run. Or run ./doctor" >&2
+  exit 2
+}
+
+# Node major ≥ 18
+NODE_VER="$("$NODE_BIN" -p "process.versions.node" 2>/dev/null || true)"
+NODE_MAJOR="${NODE_VER%%.*}"
+if [[ -n "$NODE_MAJOR" && "$NODE_MAJOR" -lt 18 ]]; then
+  echo "xhs-capture: Node ≥ 18 required (found v${NODE_VER})." >&2
+  exit 2
+fi
+
+exec "$NODE_BIN" "$ROOT/capture.mjs" "$@"
