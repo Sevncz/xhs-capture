@@ -126,6 +126,22 @@ export PATH="$HOME/.local/bin:$PATH"
 "$HOME/.local/bin/xhs-capture-shortcut"
 ```
 
+### 完成后的提示
+
+默认会弹出 **对话框**（比系统横幅通知更不容易漏掉）：
+
+- 成功：标题 + 保存路径；可点 **「在 Finder 中显示」**
+- 失败：错误摘要
+
+若只要右上角横幅、不要弹窗：
+
+```bash
+export XHS_CAPTURE_NOTIFY=notification
+"$HOME/.local/bin/xhs-capture-shortcut"
+```
+
+（快捷指令里可写成两行：先 `export`，再调 shortcut。）
+
 ### 日志
 
 ```text
