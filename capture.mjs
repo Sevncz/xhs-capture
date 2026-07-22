@@ -41,7 +41,8 @@ function parseArgs(argv) {
     deep: false,
     list: false,
     limit: 20,
-    comments: true,
+    // Temporarily off: re-enable default with comments: true when needed
+    comments: false,
     commentsLimit: 40,
     withReplies: true,
     outRoot: process.env.XHS_CAPTURE_ROOT || DEFAULT_OUT_ROOT,
@@ -69,18 +70,18 @@ function parseArgs(argv) {
 
 function usage() {
   return `用法:
-  ./run                 标准包（正文 + 评论 + 截图）
+  ./run                 标准包（正文 + 截图；默认不抓评论）
   ./run --deep          深度包（+ raw.html + 下图）
-  ./run --no-comments   不要评论
+  ./run --comments      额外抓评论（暂时默认关闭）
   ./run --comments-limit 60
-  ./run --no-replies    只要一级评论
+  ./run --no-replies    只要一级评论（需同时 --comments）
   ./run --list
   ./shortcut.sh         快捷指令入口
 
 落盘（默认 ./captures，可用 XHS_CAPTURE_ROOT 或 --out 覆盖）:
   captures/YYYY-MM-DD-标题/
     meta.json  content.md  shot.png
-    comments.json  comments.md
+    comments.json  comments.md   # 仅 --comments 时
 
 说明: 在已打开的笔记标签上只读抽取（Apple Events），不导航、不新建窗口
 Chrome: 查看 → 开发者 → 允许 Apple 事件中的 JavaScript
@@ -309,21 +310,45 @@ const EXTRACT_JS = `(() => {
     if (!images.includes(src)) images.push(src);
   };
 
+  const firstLine = (text) => {
+    const lines = String(text || '').split(/\\n+/).map(s => s.trim()).filter(Boolean);
+    return lines[0] || '';
+  };
+  const stripSiteSuffix = (s) => String(s || '')
+    .replace(/\\s*[-|–—]\\s*小红书.*$/u, '')
+    .replace(/\\s*[-|–—]\\s*xiaohongshu.*$/i, '')
+    .replace(/\\s*[-|–—]\\s*RED.*$/i, '')
+    .trim();
+
+  // Resolve note object from hydration map (prefer URL noteId)
+  const pickNoteFromMap = (map, id) => {
+    if (!map || typeof map !== 'object') return null;
+    if (id && map[id]) {
+      const entry = map[id];
+      return entry?.note || entry || null;
+    }
+    const values = Object.values(map);
+    for (const entry of values) {
+      const n = entry?.note || entry;
+      if (!n || typeof n !== 'object') continue;
+      const nid = n.noteId || n.id || n.note_id;
+      if (id && nid && String(nid) === String(id)) return n;
+    }
+    if (values.length === 1) {
+      const entry = values[0];
+      return entry?.note || entry || null;
+    }
+    return null;
+  };
+
   // --- __INITIAL_STATE__ (hydration payload already in page) ---
   try {
     const state = window.__INITIAL_STATE__;
-    const noteData = state?.note?.noteDetailMap || state?.note?.note || {};
-    let note = null;
-    if (noteId && noteData && typeof noteData === 'object') {
-      const entry = noteData[noteId];
-      note = entry?.note || entry || null;
-    }
-    if (!note && noteData && typeof noteData === 'object') {
-      const keys = Object.keys(noteData);
-      if (keys.length === 1) {
-        const entry = noteData[keys[0]];
-        note = entry?.note || entry || null;
-      }
+    const noteStore = state?.note || {};
+    const map = noteStore.noteDetailMap || noteStore.note || {};
+    let note = pickNoteFromMap(map, noteId);
+    if (!note && noteStore.firstNoteId) {
+      note = pickNoteFromMap(map, noteStore.firstNoteId);
     }
     if (note && typeof note === 'object') {
       sources.push('initial_state');
@@ -356,23 +381,96 @@ const EXTRACT_JS = `(() => {
     }
   } catch (e) {}
 
-  // --- DOM fallback ---
-  const domTitle = clean(document.querySelector('#detail-title, .title, .note-content .title'));
-  const domDesc = clean(document.querySelector('#detail-desc, .desc, .note-text, .note-content .desc'));
-  const domAuthor = clean(document.querySelector('.username, .author-wrapper .name, .author-name, .name'));
-  const domLikes = clean(document.querySelector('.interact-container .like-wrapper .count'));
-  const domCollects = clean(document.querySelector('.interact-container .collect-wrapper .count'));
-  const domComments = clean(document.querySelector('.interact-container .chat-wrapper .count'));
+  // --- DOM fallback (scoped to note container — never bare .title) ---
+  const noteRoot =
+    document.querySelector('#noteContainer')
+    || document.querySelector('.note-container')
+    || document.querySelector('.note-detail')
+    || document.querySelector('[class*="note-detail"]')
+    || document.querySelector('main')
+    || document;
 
-  if (!title && domTitle) { title = domTitle; sources.push('dom'); }
+  const q = (sel) => noteRoot.querySelector(sel);
+  const qClean = (sel) => clean(q(sel));
+
+  // Prefer explicit detail title nodes; never use document-wide ".title"
+  // (related-feed / sidebar cards also use .title and pollute folder names)
+  let domTitle = qClean('#detail-title')
+    || qClean('.note-content .title')
+    || qClean('[id="detail-title"]');
+  if (!domTitle) {
+    const scoped = q('.note-content') || q('#detail-desc') || null;
+    if (scoped) {
+      const tEl = scoped.querySelector('#detail-title, .title');
+      if (tEl) domTitle = clean(tEl);
+    }
+  }
+
+  const domDesc = qClean('#detail-desc')
+    || qClean('.note-content .desc')
+    || qClean('.note-text')
+    || qClean('#detail-desc .note-text')
+    || qClean('.desc');
+
+  const domAuthor = qClean('.author-wrapper .username')
+    || qClean('.author-wrapper .name')
+    || qClean('.username')
+    || qClean('.author-name')
+    || clean(document.querySelector('.author-wrapper .username, .author-wrapper .name'));
+
+  const interact = document.querySelector('.interact-container') || noteRoot;
+  const domLikes = clean(interact.querySelector('.like-wrapper .count, .like-wrapper'));
+  const domCollects = clean(interact.querySelector('.collect-wrapper .count, .collect-wrapper'));
+  const domComments = clean(interact.querySelector('.chat-wrapper .count, .chat-wrapper'));
+
+  // meta / document.title — better than random sidebar .title
+  const ogTitle = stripSiteSuffix(
+    document.querySelector('meta[property="og:title"]')?.content
+    || document.querySelector('meta[name="og:title"]')?.content
+    || ''
+  );
+  const docTitle = stripSiteSuffix(document.title || '');
+
+  if (!title && domTitle) { title = domTitle; if (!sources.includes('dom')) sources.push('dom'); }
+  if (!title && ogTitle) { title = ogTitle; if (!sources.includes('meta')) sources.push('meta'); }
+  if (!title && docTitle && !/小红书|xiaohongshu|rednote/i.test(docTitle)) {
+    title = docTitle;
+    if (!sources.includes('document_title')) sources.push('document_title');
+  }
+
   if (!desc && domDesc) { desc = domDesc; if (!sources.includes('dom')) sources.push('dom'); }
   if (!author && domAuthor) { author = domAuthor; if (!sources.includes('dom')) sources.push('dom'); }
   if (likes == null && domLikes) { likes = domLikes; if (!sources.includes('dom')) sources.push('dom'); }
   if (collects == null && domCollects) { collects = domCollects; if (!sources.includes('dom')) sources.push('dom'); }
   if (comments == null && domComments) { comments = domComments; if (!sources.includes('dom')) sources.push('dom'); }
 
+  // No formal title: many notes put the headline in the first line of body
+  if (!title && desc) {
+    const fl = firstLine(desc);
+    // skip pure hashtag lines
+    if (fl && !/^#/.test(fl)) {
+      title = fl.length > 80 ? fl.slice(0, 80) : fl;
+      if (!sources.includes('desc_first_line')) sources.push('desc_first_line');
+    }
+  }
+
+  // Sanity: bare .title often grabs related-feed cards. If title is not part of
+  // desc / og / doc title, and we have a better candidate, prefer that.
+  if (title && desc && !sources.includes('initial_state')) {
+    const fl = firstLine(desc);
+    const inDesc = desc.includes(title);
+    const matchesOg = ogTitle && (ogTitle === title || ogTitle.includes(title) || title.includes(ogTitle));
+    const matchesDoc = docTitle && (docTitle === title || docTitle.includes(title));
+    if (!inDesc && !matchesOg && !matchesDoc && fl && fl !== title) {
+      // keep short clickbait titles that equal first line only; otherwise replace
+      title = fl.length > 80 ? fl.slice(0, 80) : fl;
+      if (!sources.includes('title_repaired')) sources.push('title_repaired');
+    }
+  }
+
   if (!tags.length) {
-    document.querySelectorAll('#detail-desc a.tag, #detail-desc a[href*="search_result"], .tag-item').forEach(el => {
+    const tagRoot = q('#detail-desc') || noteRoot;
+    tagRoot.querySelectorAll('a.tag, a[href*="search_result"], .tag-item').forEach(el => {
       const t = (el.textContent || '').trim();
       if (t) tags.push(t);
     });
@@ -391,7 +489,7 @@ const EXTRACT_JS = `(() => {
       'img[src*="sns-img"]',
     ];
     for (const selector of imageSelectors) {
-      document.querySelectorAll(selector).forEach(img => {
+      noteRoot.querySelectorAll(selector).forEach(img => {
         pushImage(img.src || img.getAttribute('data-src') || '');
       });
     }
