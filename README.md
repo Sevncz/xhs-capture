@@ -88,9 +88,9 @@ export PATH="$HOME/.local/bin:$PATH"
 ### 推荐流程（路径固定，导入后不用改）
 
 1. 本机执行 `./install.sh`（见上）  
-2. 导入快捷指令（二选一）：  
-   - **iCloud**：[保存 xhs 笔记](https://www.icloud.com/shortcuts/de79d50eed5a47e0adc7c69ba1280ca3)  
-   - **仓库内文件**：双击 / 用「快捷指令」打开本仓的 `保存xhs笔记.shortcut`  
+2. 导入快捷指令（**推荐 iCloud 一键添加**）：  
+   - **iCloud**：[保存 xhs 笔记](https://www.icloud.com/shortcuts/82fb9162c25049f7a31f61ac6ee333bf)  
+   - 备选：双击仓库内 `保存xhs笔记.shortcut`  
 3. 确认「运行 Shell 脚本」内容为（**推荐写法，所有用户通用**）：
 
    ```bash

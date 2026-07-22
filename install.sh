@@ -142,7 +142,7 @@ echo "深度保存："
 echo "  \"\$HOME/.local/bin/xhs-capture-shortcut\" --deep"
 echo
 echo "iCloud 快捷指令模板（导入后若路径不同，改成上一行）："
-echo "  https://www.icloud.com/shortcuts/de79d50eed5a47e0adc7c69ba1280ca3"
+echo "  https://www.icloud.com/shortcuts/82fb9162c25049f7a31f61ac6ee333bf"
 echo
 echo "验证: xhs-capture-doctor   或   \"$BINDIR/xhs-capture-doctor\""
 echo "卸载: ./install.sh --uninstall"

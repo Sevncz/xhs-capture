@@ -130,7 +130,7 @@ echo
 note "仓库内直接调用（未 install 时）:"
 echo "  $ROOT/shortcut.sh"
 echo
-note "iCloud 模板: https://www.icloud.com/shortcuts/de79d50eed5a47e0adc7c69ba1280ca3"
+note "iCloud 模板: https://www.icloud.com/shortcuts/82fb9162c25049f7a31f61ac6ee333bf"
 note "Optional: export XHS_CAPTURE_ROOT=/your/path  to change save location"
 echo
 
